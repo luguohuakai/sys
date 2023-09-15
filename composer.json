@@ -1,0 +1,20 @@
+{
+    "name": "luguohuakai/sys",
+    "description": "system function",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Luguohuakai\\Sys\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "DM",
+            "email": "769245396@qq.com"
+        }
+    ],
+    "require": {
+        "luguohuakai/func": "~1.0.0"
+    }
+}
