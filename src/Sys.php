@@ -6,11 +6,20 @@ class Sys
 {
     private string $sys;
 
+    // 容量进位/进制
+    public int $binary = 1000;
+    public int $kb;
+    public int $mb;
+    public int $gb;
+
     // win
     private $wmi;
 
     public function __construct()
     {
+        $this->kb = $this->binary;
+        $this->mb = $this->binary * $this->binary;
+        $this->gb = $this->binary * $this->binary * $this->binary;
         $this->sys = PHP_OS_FAMILY;
     }
 
@@ -52,8 +61,8 @@ class Sys
             $this->initWin();
             $res = $this->wmi->ExecQuery('SELECT FreePhysicalMemory,FreeVirtualMemory,TotalSwapSpaceSize,TotalVirtualMemorySize,TotalVisibleMemorySize FROM Win32_OperatingSystem');
             $mem = $res->ItemIndex(0);
-            $mem_total = round($mem->TotalVisibleMemorySize / 1000000, 2);
-            $mem_available = round($mem->FreePhysicalMemory / 1000000, 2);
+            $mem_total = round($mem->TotalVisibleMemorySize / $this->mb, 2);
+            $mem_available = round($mem->FreePhysicalMemory / $this->mb, 2);
             $mem_used = round($mem_total - $mem_available, 2);
         } else {
             // Linux MEM
@@ -65,12 +74,12 @@ class Sys
                 return ($value !== null && $value !== false && $value !== '');
             }); // removes nulls from array
             $mem = array_merge($mem); // puts arrays back to [0],[1],[2] after
-            $mem_total = round($mem[1] / 1000000, 2);
-            $mem_used = round($mem[2] / 1000000, 2);
-            $mem_free = round($mem[3] / 1000000, 2);
-            $mem_shared = round($mem[4] / 1000000, 2);
-            $mem_cached = round($mem[5] / 1000000, 2);
-            $mem_available = round($mem[6] / 1000000, 2);
+            $mem_total = round($mem[1] / $this->mb, 2);
+            $mem_used = round($mem[2] / $this->mb, 2);
+            $mem_free = round($mem[3] / $this->mb, 2);
+            $mem_shared = round($mem[4] / $this->mb, 2);
+            $mem_cached = round($mem[5] / $this->mb, 2);
+            $mem_available = round($mem[6] / $this->mb, 2);
         }
         $data = compact('mem_total', 'mem_available', 'mem_used');
         if (isset($mem_shared)) $data['mem_shared'] = $mem_shared;
@@ -103,6 +112,8 @@ class Sys
             $cpu_load = $load[0];
             $cpu_count = shell_exec('nproc');
         }
+        $cpu_load = round($cpu_load, 2);
+        $cpu_count = trim($cpu_count);
 
         return compact('cpu_load', 'cpu_count');
     }
@@ -124,6 +135,8 @@ class Sys
             $connections = `netstat -ntu | grep -E ':80 |443 ' | grep ESTABLISHED | grep -v LISTEN | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn | grep -v 127.0.0.1 | wc -l`;
             $total_connections = `netstat -ntu | grep -E ':80 |443 ' | grep -v LISTEN | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn | grep -v 127.0.0.1 | wc -l`;
         }
+        $connections = trim($connections);
+        $total_connections = trim($total_connections);
 
         return compact('connections', 'total_connections');
     }
@@ -135,8 +148,8 @@ class Sys
      */
     public function disk(): array
     {
-        $disk_free = round(disk_free_space(".") / 1000000000);
-        $disk_total = round(disk_total_space(".") / 1000000000);
+        $disk_free = round(disk_free_space(".") / $this->gb);
+        $disk_total = round(disk_total_space(".") / $this->gb);
         return compact('disk_free', 'disk_total');
     }
 
@@ -146,19 +159,18 @@ class Sys
      */
     public function phpUsage(): float
     {
-        return round(memory_get_usage() / 1000000, 2);
+        return round(memory_get_usage() / $this->mb, 2);
     }
 
     /**
      * @return array [k => v] <br>
-     * name 服务器域名 <br>
      * ip 服务器IP
      */
     public function server(): array
     {
+        $ip = `hostname -i`;
         return [
-            'name' => $_SERVER['SERVER_NAME'],
-            'ip' => $_SERVER['SERVER_ADDR']
+            'ip' => trim($ip)
         ];
     }
 }
