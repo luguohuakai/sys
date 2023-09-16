@@ -22,6 +22,10 @@ class Sys
      */
     public function initWin()
     {
+        if (!class_exists('COM')) {
+            echo 'Class not exists: COM; config php.ini:extension=php_com_dotnet.dll, Please!' . PHP_EOL;
+            exit(1);
+        }
         $this->wmi = new COM('WinMgmts:\\\\.');
     }
 
