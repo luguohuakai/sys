@@ -7,10 +7,10 @@ class Sys
     private string $sys;
 
     // 容量进位/进制
-    public int $binary = 1000;
-    public int $kb;
-    public int $mb;
-    public int $gb;
+    private int $binary = 1000;
+    private int $kb;
+    private int $mb;
+    private int $gb;
 
     // win
     private $wmi;
@@ -21,6 +21,19 @@ class Sys
         $this->mb = $this->binary * $this->binary;
         $this->gb = $this->binary * $this->binary * $this->binary;
         $this->sys = PHP_OS_FAMILY;
+    }
+
+    /**
+     * 设置容量进位 默认:1000
+     * @param int $n
+     * @return void
+     */
+    public function setBinary(int $n = 1000)
+    {
+        $this->binary = $n;
+        $this->kb = $this->binary;
+        $this->mb = $this->binary * $this->binary;
+        $this->gb = $this->binary * $this->binary * $this->binary;
     }
 
     /**
