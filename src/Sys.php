@@ -126,7 +126,7 @@ class Sys
             $cpu_count = shell_exec('nproc');
         }
         $cpu_load = round($cpu_load, 2);
-        $cpu_count = trim($cpu_count);
+        $cpu_count = (int)trim($cpu_count);
 
         return compact('cpu_load', 'cpu_count');
     }
@@ -148,8 +148,8 @@ class Sys
             $connections = `netstat -ntu | grep -E ':80 |443 ' | grep ESTABLISHED | grep -v LISTEN | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn | grep -v 127.0.0.1 | wc -l`;
             $total_connections = `netstat -ntu | grep -E ':80 |443 ' | grep -v LISTEN | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn | grep -v 127.0.0.1 | wc -l`;
         }
-        $connections = trim($connections);
-        $total_connections = trim($total_connections);
+        $connections = (int)trim($connections);
+        $total_connections = (int)trim($total_connections);
 
         return compact('connections', 'total_connections');
     }
