@@ -124,11 +124,14 @@ class Sys
             $load = sys_getloadavg();
             $cpu_load = $load[0];
             $cpu_count = shell_exec('nproc');
+            $model_name = `cat /proc/cpuinfo | grep "model name" | cut -f2 -d: | uniq -c`;
         }
-        $cpu_load = round($cpu_load, 2);
-        $cpu_count = (int)trim($cpu_count);
 
-        return compact('cpu_load', 'cpu_count');
+        return [
+            'load' => round($cpu_load, 2),
+            'count' => (int)trim($cpu_count),
+            'model_name' => isset($model_name) ? trim($model_name) : ''
+        ];
     }
 
     /**
@@ -182,8 +185,10 @@ class Sys
     public function server(): array
     {
         $ip = `hostname -i`;
+        $product_name = `dmidecode | grep "Product Name"`;
         return [
-            'ip' => trim($ip)
+            'ip' => trim($ip),
+            'product_name' => trim($product_name),
         ];
     }
 }
