@@ -1,5 +1,7 @@
 <?php
 
+namespace luguohuakai\sys;
+
 class Sys
 {
     private string $sys;
