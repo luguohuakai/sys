@@ -104,8 +104,12 @@ class Sys
 
     /**
      * @return array [k => v] <br>
-     * cpu_load cpu负载 0.00-100.00 <br>
-     * cpu_count cpu核心数
+     * load cpu负载 0.00-100.00 <br>
+     * count cpu核心数<br>
+     * real_count cpu物理个数
+     * per_count 每个cpu核心个数
+     * model_name CPU型号
+     * arch cpu架构
      */
     public function cpu(): array
     {
@@ -124,13 +128,19 @@ class Sys
             $load = sys_getloadavg();
             $cpu_load = $load[0];
             $cpu_count = shell_exec('nproc');
-            $model_name = `cat /proc/cpuinfo | grep "model name" | cut -f2 -d: | uniq -c`;
+            $cpu_real_count = `cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l`;
+            $per_cpu_count = `cat /proc/cpuinfo | grep "cores" |uniq| awk -F ': ' '{print $2}'`;
+            $model_name = `cat /proc/cpuinfo | grep "model name" | awk -F ': ' '{print $2}' | sort | uniq`;
+            $arch = `uname -m`;
         }
 
         return [
             'load' => round($cpu_load, 2),
             'count' => (int)trim($cpu_count),
-            'model_name' => isset($model_name) ? trim($model_name) : ''
+            'real_count' => isset($cpu_real_count) ? (int)trim($cpu_real_count) : 0,
+            'per_count' => isset($per_cpu_count) ? (int)trim($per_cpu_count) : 0,
+            'model_name' => isset($model_name) ? trim($model_name) : '',
+            'arch' => isset($arch) ? trim($arch) : '',
         ];
     }
 
@@ -181,14 +191,38 @@ class Sys
     /**
      * @return array [k => v] <br>
      * ip 服务器IP
+     * product_name 产品名称
+     * description 系统描述
+     * date 系统时间
+     * uname_r 内核
+     * uname_o 系统
+     * uname_n 主机名
+     * selinux selinux状态
+     * last_reboot 最后启动
+     * uptime 运行时间
      */
     public function server(): array
     {
         $ip = `hostname -i`;
         $product_name = `dmidecode | grep "Product Name"`;
+        $lsb_release = `lsb_release -a | grep "Description"`;
+        $uname_r = `uname -r`;
+        $uname_o = `uname -o`;
+        $uname_n = `uname -n`;
+        $selinux = `/usr/sbin/sestatus | grep "SELinux status: " | awk '{print $3}'`;
+        $last_reboot = `who -b | awk '{print $3,$4}'`;
+        $uptime = `uptime | sed 's/.*up \([^,]*\), .*/\1/'`;
         return [
             'ip' => trim($ip),
             'product_name' => trim($product_name),
+            'description' => trim(explode(':', $lsb_release)[1]),
+            'date' => date('Y-m-d H:i:s'),
+            'uname_r' => isset($uname_r) ? trim($uname_r) : '',
+            'uname_o' => isset($uname_o) ? trim($uname_o) : '',
+            'uname_n' => isset($uname_n) ? trim($uname_n) : '',
+            'selinux' => isset($selinux) ? trim($selinux) : '',
+            'last_reboot' => isset($last_reboot) ? trim($last_reboot) : '',
+            'uptime' => isset($uptime) ? trim($uptime) : '',
         ];
     }
 }
