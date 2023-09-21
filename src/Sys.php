@@ -179,10 +179,10 @@ class Sys
     /**
      * @return array [k => v] <br>
      * count cpu核心数<br>
-     * real_count cpu物理个数
-     * per_count 每个cpu核心个数
-     * model_name CPU型号
-     * arch cpu架构
+     * real_count cpu物理个数<br>
+     * per_count 每个cpu核心个数<br>
+     * model_name CPU型号<br>
+     * arch cpu架构<br>
      */
     public function cpuStatic(): array
     {
@@ -223,7 +223,7 @@ class Sys
     }
 
     /**
-     * 连接数统计
+     * 连接数统计<br>
      * @return array [k => v]<br>
      * connections 已建立连接数<br>
      * total_connections 总连接数
@@ -246,7 +246,7 @@ class Sys
     }
 
     /**
-     * 磁盘信息
+     * 磁盘信息 <br>
      * @return array [k => v] <br>
      * disk_free 剩余磁盘容量 <br>
      * disk_total 总磁盘容量
@@ -259,16 +259,17 @@ class Sys
     }
 
     /**
+     * 服务器静态信息<br>
      * @return array [k => v] <br>
-     * ip 服务器IP
-     * product_name 产品名称
-     * description 系统描述
-     * date 系统时间
-     * uname_r 内核
-     * uname_o 系统
-     * uname_n 主机名
-     * selinux selinux状态
-     * last_reboot 最后启动
+     * ip 服务器IP <br>
+     * product_name 产品名称 <br>
+     * description 系统描述 <br>
+     * date 系统时间 <br>
+     * uname_r 内核 <br>
+     * uname_o 系统 <br>
+     * uname_n 主机名 <br>
+     * selinux selinux状态 <br>
+     * last_reboot 最后启动 <br>
      * uptime 运行时间
      */
     public function server(): array
@@ -311,9 +312,7 @@ class Sys
     {
         $rtn = [];
         $netstat = file_get_contents('/proc/net/dev');
-        if (false === $netstat) {
-            return [];
-        }
+        if (false === $netstat) return [];
 
         $buffer = preg_split("/\n/", $netstat, -1, PREG_SPLIT_NO_EMPTY);
         foreach ($buffer as $buf) {
@@ -323,12 +322,12 @@ class Sys
 
                 $stats = preg_split('/\s+/', trim($stats_list));
                 $rtn[$dev_name]['name'] = $dev_name;
-                $rtn[$dev_name]['in_rate'] = !$bFormat ? $stats[0] : $this->netSize($stats[0]);
+                $rtn[$dev_name]['in_rate'] = !$bFormat ? $stats[0] : $this->netSizeFormat($stats[0]);
                 $rtn[$dev_name]['in_packets'] = $stats[1];
                 $rtn[$dev_name]['in_errors'] = $stats[2];
                 $rtn[$dev_name]['in_drop'] = $stats[3];
 
-                $rtn[$dev_name]['out_traffic'] = !$bFormat ? $stats[8] : $this->netSize($stats[8]);
+                $rtn[$dev_name]['out_traffic'] = !$bFormat ? $stats[8] : $this->netSizeFormat($stats[8]);
                 $rtn[$dev_name]['out_packets'] = $stats[9];
                 $rtn[$dev_name]['out_errors'] = $stats[10];
                 $rtn[$dev_name]['out_drop'] = $stats[11];
@@ -338,7 +337,7 @@ class Sys
         return $rtn;
     }
 
-    private function netSize($size): string
+    public function netSizeFormat($size): string
     {
         if ($size < 1024) {
             $unit = 'Bbps';
