@@ -2,12 +2,14 @@
 
 namespace luguohuakai\sys;
 
+use luguohuakai\func\Func;
+
 class Sys
 {
     private string $sys;
 
     // 容量进位/进制
-    private int $binary = 1000;
+    private int $binary = 1024;
     private int $kb;
     private int $mb;
     private int $gb;
@@ -24,11 +26,11 @@ class Sys
     }
 
     /**
-     * 设置容量进位 默认:1000
+     * 设置容量进位 默认:1024
      * @param int $n
      * @return void
      */
-    public function setBinary(int $n = 1000)
+    public function setBinary(int $n = 1024)
     {
         $this->binary = $n;
         $this->kb = $this->binary;
@@ -49,11 +51,6 @@ class Sys
             exit(1);
         }
         $this->wmi = new COM('WinMgmts:\\\\.');
-    }
-
-    public static function phpVersion(): string
-    {
-        return PHP_VERSION;
     }
 
     /**
@@ -103,45 +100,148 @@ class Sys
     }
 
     /**
+     * 内存信息
+     * @param bool $bFormat 格式化
+     * @return array
+     */
+    public function getMem(bool $bFormat = false): array
+    {
+        if (false === ($str = file_get_contents("/proc/meminfo"))) return [];
+
+        preg_match_all("/MemTotal\s*:+\s*([\d.]+).+?MemFree\s*:+\s*([\d.]+).+?MemAvailable\s*:+\s*([\d.]+).+?Cached\s*:+\s*([\d.]+).+?SwapTotal\s*:+\s*([\d.]+).+?SwapFree\s*:+\s*([\d.]+)/s", $str, $mems);
+        preg_match_all("/Buffers\s*:+\s*([\d.]+)/s", $str, $buffers);
+
+        $mtotal = $mems[1][0] * 1024;
+        $mfree = $mems[2][0] * 1024;
+        $mem_available = $mems[3][0] * 1024;
+
+        $mbuffers = $buffers[1][0] * 1024;
+        $mcached = $mems[4][0] * 1024;
+        $stotal = $mems[5][0] * 1024;
+        $sfree = $mems[6][0] * 1024;
+        $mused = $mtotal - $mfree;
+        $sused = $stotal - $sfree;
+        $mrealused = $mtotal - $mfree - $mcached - $mbuffers; // 真实内存使用
+
+        $rtn['mem_total'] = !$bFormat ? $mtotal : Func::dataSizeFormat($mtotal, 1);
+        $rtn['mem_free'] = !$bFormat ? $mfree : Func::dataSizeFormat($mfree, 1);
+        $rtn['mem_available'] = !$bFormat ? $mem_available : Func::dataSizeFormat($mem_available, 1);
+        $rtn['mem_shared'] = !$bFormat ? $mbuffers : Func::dataSizeFormat($mbuffers, 1);
+        $rtn['mem_cached'] = !$bFormat ? $mcached : Func::dataSizeFormat($mcached, 1);
+        $rtn['mem_used'] = !$bFormat ? ($mtotal - $mfree) : Func::dataSizeFormat($mtotal - $mfree, 1);
+        $rtn['mem_percent'] = (floatval($mtotal) != 0) ? round($mused / $mtotal * 100, 1) : 0;
+        $rtn['mem_real_used'] = !$bFormat ? $mrealused : Func::dataSizeFormat($mrealused, 1);
+        $rtn['mem_real_free'] = !$bFormat ? ($mtotal - $mrealused) : Func::dataSizeFormat($mtotal - $mrealused, 1);// 真实空闲
+        $rtn['mem_real_percent'] = (floatval($mtotal) != 0) ? round($mrealused / $mtotal * 100, 1) : 0; // 真实内存使用率
+        $rtn['mem_cached_percent'] = (floatval($mcached) != 0) ? round($mcached / $mtotal * 100, 1) : 0; // Cached内存使用率
+        $rtn['swap_total'] = !$bFormat ? $stotal : Func::dataSizeFormat($stotal, 1);
+        $rtn['swap_free'] = !$bFormat ? $sfree : Func::dataSizeFormat($sfree, 1);
+        $rtn['swap_used'] = !$bFormat ? $sused : Func::dataSizeFormat($sused, 1);
+        $rtn['swap_percent'] = (floatval($stotal) != 0) ? round($sused / $stotal * 100, 1) : 0;
+        return $rtn;
+    }
+
+    /**
      * @return array [k => v] <br>
-     * load cpu负载 0.00-100.00 <br>
+     * load 系统负载<br>
+     */
+    public function sysLoad(): array
+    {
+        return [
+            'sys_load' => sys_getloadavg(),
+        ];
+    }
+
+    /**
+     * 获取系统负载
+     * @return array|string[]
+     */
+    public function getLoad(): array
+    {
+        if (false === ($str = file_get_contents("/proc/loadavg"))) return [];
+
+        return explode(' ', $str);
+    }
+
+    /**
+     * 获取CPU使用率
+     * @return array
+     */
+    public function cpu(): array
+    {
+        $cpu_usage = 0;
+        $cpu_info1 = $this->cpuInfo();
+        if ($cpu_info1) {
+            sleep(1);
+            $cpu_info2 = $this->cpuInfo();
+
+            $time = $cpu_info2['time'] - $cpu_info1['time'];
+            $total = $cpu_info2['total'] - $cpu_info1['total'];
+            $cpu_usage = round($time / $total, 4) * 100;
+        }
+        return compact('cpu_usage');
+    }
+
+    private function cpuInfo()
+    {
+        if (false === ($str = file_get_contents("/proc/stat"))) return false;
+
+        $cpu = [];
+        $mode = "/(cpu)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)/";
+        preg_match_all($mode, $str, $cpu);
+        $total = $cpu[2][0] + $cpu[3][0] + $cpu[4][0] + $cpu[5][0] + $cpu[6][0] + $cpu[7][0] + $cpu[8][0] + $cpu[9][0];
+        $time = $cpu[2][0] + $cpu[3][0] + $cpu[4][0] + $cpu[6][0] + $cpu[7][0] + $cpu[8][0] + $cpu[9][0];
+
+        return [
+            'total' => $total,
+            'time' => $time,
+        ];
+    }
+
+    /**
+     * @return array [k => v] <br>
      * count cpu核心数<br>
      * real_count cpu物理个数
      * per_count 每个cpu核心个数
      * model_name CPU型号
      * arch cpu架构
      */
-    public function cpu(): array
+    public function cpuStatic(): array
     {
-        if ($this->sys === 'Windows') {
-            // Win CPU
-            $this->initWin();
-            $cpus = $this->wmi->InstancesOf('Win32_Processor');
-            $cpu_load = 0;
-            $cpu_count = 0;
-            foreach ($cpus as $cpu) {
-                $cpu_load += $cpu->LoadPercentage;
-                $cpu_count++;
-            }
-        } else {
-            // Linux CPU
-            $load = sys_getloadavg();
-            $cpu_load = $load[0];
-            $cpu_count = shell_exec('nproc');
-            $cpu_real_count = `cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l`;
-            $per_cpu_count = `cat /proc/cpuinfo | grep "cores" |uniq| awk -F ': ' '{print $2}'`;
-            $model_name = `cat /proc/cpuinfo | grep "model name" | awk -F ': ' '{print $2}' | sort | uniq`;
-            $arch = `uname -m`;
-        }
-
+        $cpu_count = shell_exec('nproc');
+        $cpu_real_count = `cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l`;
+        $per_cpu_count = `cat /proc/cpuinfo | grep "cores" |uniq| awk -F ': ' '{print $2}'`;
+        $model_name = `cat /proc/cpuinfo | grep "model name" | awk -F ': ' '{print $2}' | sort | uniq`;
+        $arch = `uname -m`;
         return [
-            'load' => round($cpu_load, 2),
             'count' => (int)trim($cpu_count),
             'real_count' => isset($cpu_real_count) ? (int)trim($cpu_real_count) : 0,
             'per_count' => isset($per_cpu_count) ? (int)trim($per_cpu_count) : 0,
             'model_name' => isset($model_name) ? trim($model_name) : '',
             'arch' => isset($arch) ? trim($arch) : '',
         ];
+    }
+
+    /**
+     * 服务器运行时间
+     * @return string[]
+     */
+    public function uptime(): array
+    {
+        if (false === ($str = file_get_contents('/proc/uptime'))) return ['sys_uptime' => ''];
+        $upTime = '';
+        $str = explode(' ', $str);
+        $str = trim($str[0]);
+        $min = $str / 60;
+        $hours = $min / 60;
+        $days = (int)($hours / 24);
+        $hours = $hours % 24;
+        $min = $min % 60;
+
+        if ($days !== 0) $upTime = $days . '天';
+        if ($hours !== 0) $upTime .= $hours . '小时';
+
+        return ['sys_uptime' => $upTime . $min . '分钟'];
     }
 
     /**
@@ -168,14 +268,15 @@ class Sys
     }
 
     /**
+     * 磁盘信息
      * @return array [k => v] GB <br>
      * disk_free 剩余磁盘容量 <br>
      * disk_total 总磁盘容量
      */
-    public function disk(): array
+    public function disk(string $dir = '.'): array
     {
-        $disk_free = round(disk_free_space(".") / $this->gb);
-        $disk_total = round(disk_total_space(".") / $this->gb);
+        $disk_free = Func::dataSizeFormat(round(disk_free_space($dir)));
+        $disk_total = Func::dataSizeFormat(round(disk_total_space($dir)));
         return compact('disk_free', 'disk_total');
     }
 
@@ -224,5 +325,73 @@ class Sys
             'last_reboot' => isset($last_reboot) ? trim($last_reboot) : '',
             'uptime' => isset($uptime) ? trim($uptime) : '',
         ];
+    }
+
+    /**
+     * 获取网络数据
+     * @param bool $bFormat
+     * @return array
+     */
+    public function network(bool $bFormat = false): array
+    {
+        $rtn = [];
+        $netstat = file_get_contents('/proc/net/dev');
+        if (false === $netstat) {
+            return [];
+        }
+
+        $buffer = preg_split("/\n/", $netstat, -1, PREG_SPLIT_NO_EMPTY);
+        foreach ($buffer as $buf) {
+            if (preg_match('/:/', $buf)) {
+                list($dev_name, $stats_list) = preg_split('/:/', $buf, 2);
+                $dev_name = trim($dev_name);
+
+                $stats = preg_split('/\s+/', trim($stats_list));
+                $rtn[$dev_name]['name'] = $dev_name;
+                $rtn[$dev_name]['in_rate'] = !$bFormat ? $stats[0] : $this->netSize($stats[0]);
+                $rtn[$dev_name]['in_packets'] = $stats[1];
+                $rtn[$dev_name]['in_errors'] = $stats[2];
+                $rtn[$dev_name]['in_drop'] = $stats[3];
+
+                $rtn[$dev_name]['out_traffic'] = !$bFormat ? $stats[8] : $this->netSize($stats[8]);
+                $rtn[$dev_name]['out_packets'] = $stats[9];
+                $rtn[$dev_name]['out_errors'] = $stats[10];
+                $rtn[$dev_name]['out_drop'] = $stats[11];
+            }
+        }
+
+        return $rtn;
+    }
+
+    private function netSize($size): string
+    {
+        if ($size < 1024) {
+            $unit = "Bbps";
+        } else if ($size < 10240) {
+            $size = round($size / 1024, 2);
+            $unit = "Kbps";
+        } else if ($size < 102400) {
+            $size = round($size / 1024, 2);
+            $unit = "Kbps";
+        } else if ($size < 1048576) {
+            $size = round($size / 1024, 2);
+            $unit = "Kbps";
+        } else if ($size < 10485760) {
+            $size = round($size / 1048576, 2);
+            $unit = "Mbps";
+        } else if ($size < 104857600) {
+            $size = round($size / 1048576, 2);
+            $unit = "Mbps";
+        } else if ($size < 1073741824) {
+            $size = round($size / 1048576, 2);
+            $unit = "Mbps";
+        } else {
+            $size = round($size / 1073741824, 2);
+            $unit = "Gbps";
+        }
+
+        $size .= $unit;
+
+        return $size;
     }
 }
