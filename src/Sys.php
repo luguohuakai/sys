@@ -8,34 +8,12 @@ class Sys
 {
     private string $sys;
 
-    // 容量进位/进制
-    private int $binary = 1024;
-    private int $kb;
-    private int $mb;
-    private int $gb;
-
     // win
-    private $wmi;
+    private COM $wmi;
 
     public function __construct()
     {
-        $this->kb = $this->binary;
-        $this->mb = $this->binary * $this->binary;
-        $this->gb = $this->binary * $this->binary * $this->binary;
         $this->sys = PHP_OS_FAMILY;
-    }
-
-    /**
-     * 设置容量进位 默认:1024
-     * @param int $n
-     * @return void
-     */
-    public function setBinary(int $n = 1024)
-    {
-        $this->binary = $n;
-        $this->kb = $this->binary;
-        $this->mb = $this->binary * $this->binary;
-        $this->gb = $this->binary * $this->binary * $this->binary;
     }
 
     /**
@@ -54,7 +32,7 @@ class Sys
     }
 
     /**
-     * @return array [k => v] GB<br>
+     * @return array [k => v]<br>
      * Linux + Win: <br>
      * mem_total 总内存<br>
      * mem_used 已用内存<br>
@@ -71,25 +49,25 @@ class Sys
             $this->initWin();
             $res = $this->wmi->ExecQuery('SELECT FreePhysicalMemory,FreeVirtualMemory,TotalSwapSpaceSize,TotalVirtualMemorySize,TotalVisibleMemorySize FROM Win32_OperatingSystem');
             $mem = $res->ItemIndex(0);
-            $mem_total = round($mem->TotalVisibleMemorySize / $this->mb, 2);
-            $mem_available = round($mem->FreePhysicalMemory / $this->mb, 2);
-            $mem_used = round($mem_total - $mem_available, 2);
+            $mem_total = $mem->TotalVisibleMemorySize;
+            $mem_available = $mem->FreePhysicalMemory;
+            $mem_used = $mem_total - $mem_available;
         } else {
             // Linux MEM
             $free = shell_exec('free');
             $free = trim($free);
             $free_arr = explode("\n", $free);
-            $mem = explode(" ", $free_arr[1]);
+            $mem = explode(' ', $free_arr[1]);
             $mem = array_filter($mem, function ($value) {
                 return ($value !== null && $value !== false && $value !== '');
             }); // removes nulls from array
             $mem = array_merge($mem); // puts arrays back to [0],[1],[2] after
-            $mem_total = round($mem[1] / $this->mb, 2);
-            $mem_used = round($mem[2] / $this->mb, 2);
-            $mem_free = round($mem[3] / $this->mb, 2);
-            $mem_shared = round($mem[4] / $this->mb, 2);
-            $mem_cached = round($mem[5] / $this->mb, 2);
-            $mem_available = round($mem[6] / $this->mb, 2);
+            $mem_total = $mem[1];
+            $mem_used = $mem[2];
+            $mem_free = $mem[3];
+            $mem_shared = $mem[4];
+            $mem_cached = $mem[5];
+            $mem_available = $mem[6];
         }
         $data = compact('mem_total', 'mem_available', 'mem_used');
         if (isset($mem_shared)) $data['mem_shared'] = $mem_shared;
@@ -106,7 +84,7 @@ class Sys
      */
     public function getMem(bool $bFormat = false): array
     {
-        if (false === ($str = file_get_contents("/proc/meminfo"))) return [];
+        if (false === ($str = file_get_contents('/proc/meminfo'))) return [];
 
         preg_match_all("/MemTotal\s*:+\s*([\d.]+).+?MemFree\s*:+\s*([\d.]+).+?MemAvailable\s*:+\s*([\d.]+).+?Cached\s*:+\s*([\d.]+).+?SwapTotal\s*:+\s*([\d.]+).+?SwapFree\s*:+\s*([\d.]+)/s", $str, $mems);
         preg_match_all("/Buffers\s*:+\s*([\d.]+)/s", $str, $buffers);
@@ -158,7 +136,7 @@ class Sys
      */
     public function getLoad(): array
     {
-        if (false === ($str = file_get_contents("/proc/loadavg"))) return [];
+        if (false === ($str = file_get_contents('/proc/loadavg'))) return [];
 
         return explode(' ', $str);
     }
@@ -184,7 +162,7 @@ class Sys
 
     private function cpuInfo()
     {
-        if (false === ($str = file_get_contents("/proc/stat"))) return false;
+        if (false === ($str = file_get_contents('/proc/stat'))) return false;
 
         $cpu = [];
         $mode = "/(cpu)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)[\s]+([0-9]+)/";
@@ -269,24 +247,15 @@ class Sys
 
     /**
      * 磁盘信息
-     * @return array [k => v] GB <br>
+     * @return array [k => v] <br>
      * disk_free 剩余磁盘容量 <br>
      * disk_total 总磁盘容量
      */
     public function disk(string $dir = '.'): array
     {
-        $disk_free = Func::dataSizeFormat(round(disk_free_space($dir)));
-        $disk_total = Func::dataSizeFormat(round(disk_total_space($dir)));
+        $disk_free = round(disk_free_space($dir));
+        $disk_total = round(disk_total_space($dir));
         return compact('disk_free', 'disk_total');
-    }
-
-    /**
-     * php使用内存 GB
-     * @return float
-     */
-    public function phpUsage(): float
-    {
-        return round(memory_get_usage() / $this->mb, 2);
     }
 
     /**
@@ -366,28 +335,28 @@ class Sys
     private function netSize($size): string
     {
         if ($size < 1024) {
-            $unit = "Bbps";
+            $unit = 'Bbps';
         } else if ($size < 10240) {
             $size = round($size / 1024, 2);
-            $unit = "Kbps";
+            $unit = 'Kbps';
         } else if ($size < 102400) {
             $size = round($size / 1024, 2);
-            $unit = "Kbps";
+            $unit = 'Kbps';
         } else if ($size < 1048576) {
             $size = round($size / 1024, 2);
-            $unit = "Kbps";
+            $unit = 'Kbps';
         } else if ($size < 10485760) {
             $size = round($size / 1048576, 2);
-            $unit = "Mbps";
+            $unit = 'Mbps';
         } else if ($size < 104857600) {
             $size = round($size / 1048576, 2);
-            $unit = "Mbps";
+            $unit = 'Mbps';
         } else if ($size < 1073741824) {
             $size = round($size / 1048576, 2);
-            $unit = "Mbps";
+            $unit = 'Mbps';
         } else {
             $size = round($size / 1073741824, 2);
-            $unit = "Gbps";
+            $unit = 'Gbps';
         }
 
         $size .= $unit;
