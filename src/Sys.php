@@ -138,14 +138,14 @@ class Sys
     {
         if (false === ($str = file_get_contents('/proc/loadavg'))) return [];
 
-        return explode(' ', $str);
+        return ['sys_load' => explode(' ', $str)];
     }
 
     /**
      * 获取CPU使用率
      * @return array
      */
-    public function cpu(): array
+    public function cpuUsage(): array
     {
         $cpu_usage = 0;
         $cpu_info1 = $this->cpuInfo();
@@ -178,25 +178,28 @@ class Sys
 
     /**
      * @return array [k => v] <br>
-     * count cpu核心数<br>
-     * real_count cpu物理个数<br>
-     * per_count 每个cpu核心个数<br>
-     * model_name CPU型号<br>
-     * arch cpu架构<br>
+     * cpu_nproc cpu可用个数<br>
+     * cpu_logic_count 逻辑cpu个数<br>
+     * cpu_real_count 物理cpu个数<br>
+     * cpu_per_count 每个逻辑cpu核心个数<br>
+     * cpu_model_name CPU型号<br>
+     * cpu_arch cpu架构<br>
      */
     public function cpuStatic(): array
     {
-        $cpu_count = shell_exec('nproc');
+        $cpu_nproc = shell_exec('nproc');
         $cpu_real_count = `cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l`;
+        $cpu_logic_count = `cat /proc/cpuinfo |grep "processor"|wc -l`;
         $per_cpu_count = `cat /proc/cpuinfo | grep "cores" |uniq| awk -F ': ' '{print $2}'`;
         $model_name = `cat /proc/cpuinfo | grep "model name" | awk -F ': ' '{print $2}' | sort | uniq`;
         $arch = `uname -m`;
         return [
-            'count' => (int)trim($cpu_count),
-            'real_count' => isset($cpu_real_count) ? (int)trim($cpu_real_count) : 0,
-            'per_count' => isset($per_cpu_count) ? (int)trim($per_cpu_count) : 0,
-            'model_name' => isset($model_name) ? trim($model_name) : '',
-            'arch' => isset($arch) ? trim($arch) : '',
+            'cpu_nproc' => isset($cpu_nproc) ? (int)trim($cpu_nproc) : 0,
+            'cpu_logic_count' => isset($cpu_logic_count) ? (int)trim($cpu_logic_count) : 0,
+            'cpu_real_count' => isset($cpu_real_count) ? (int)trim($cpu_real_count) : 0,
+            'cpu_per_count' => isset($per_cpu_count) ? (int)trim($per_cpu_count) : 0,
+            'cpu_model_name' => isset($model_name) ? trim($model_name) : '',
+            'cpu_arch' => isset($arch) ? trim($arch) : '',
         ];
     }
 
@@ -272,19 +275,23 @@ class Sys
      * uname_n 主机名 <br>
      * selinux selinux状态 <br>
      * last_reboot 最后启动 <br>
-     * uptime 运行时间
+     * uptime 运行时间 秒
      */
     public function server(): array
     {
         $ip = `hostname -i`;
         $product_name = `dmidecode | grep "Product Name"`;
+        $product_name = explode(':', $product_name)[1] ?? '';
         $lsb_release = `lsb_release -a | grep "Description"`;
         $uname_r = `uname -r`;
         $uname_o = `uname -o`;
         $uname_n = `uname -n`;
         $selinux = `/usr/sbin/sestatus | grep "SELinux status: " | awk '{print $3}'`;
         $last_reboot = `who -b | awk '{print $3,$4}'`;
-        $uptime = `uptime | sed 's/.*up \([^,]*\), .*/\1/'`;
+//        $uptime = shell_exec("uptime | sed 's/.*up \([^,]*\), .*/\1/'");
+
+        if (false === ($str = file_get_contents('/proc/uptime'))) $uptime = 0;
+        $uptime = explode(' ', $str)[0];
         return [
             'ip' => trim($ip),
             'product_name' => trim($product_name),
@@ -295,7 +302,7 @@ class Sys
             'uname_n' => isset($uname_n) ? trim($uname_n) : '',
             'selinux' => isset($selinux) ? trim($selinux) : '',
             'last_reboot' => isset($last_reboot) ? trim($last_reboot) : '',
-            'uptime' => isset($uptime) ? trim($uptime) : '',
+            'uptime' => isset($uptime) ? (int)trim($uptime) : '',
         ];
     }
 
