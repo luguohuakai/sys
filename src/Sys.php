@@ -19,7 +19,7 @@ class Sys
     /**
      * 注意: COM组件需要在php.ini中开启<br>
      * [COM_DOT_NET]<br>
-     * extension=php_com_dotnet.dll
+     * extension=php_com_dotnet.dll<br>
      * @return void
      */
     public function initWin()
@@ -40,7 +40,7 @@ class Sys
      * Linux:<br>
      * mem_shared 共享内存<br>
      * mem_cached 缓冲内存<br>
-     * mem_free 剩余内存数
+     * mem_free 剩余内存数<br>
      */
     public function mem(): array
     {
@@ -78,7 +78,7 @@ class Sys
     }
 
     /**
-     * 内存信息
+     * 内存信息<br>
      * @param bool $bFormat 格式化
      * @return array
      */
@@ -229,7 +229,7 @@ class Sys
      * 连接数统计<br>
      * @return array [k => v]<br>
      * connections 已建立连接数<br>
-     * total_connections 总连接数
+     * total_connections 总连接数<br>
      */
     public function connections(): array
     {
@@ -252,7 +252,7 @@ class Sys
      * 磁盘信息 <br>
      * @return array [k => v] <br>
      * disk_free 剩余磁盘容量 <br>
-     * disk_total 总磁盘容量
+     * disk_total 总磁盘容量<br>
      */
     public function disk(string $dir = '.'): array
     {
@@ -275,7 +275,7 @@ class Sys
      * uname_n 主机名 <br>
      * selinux selinux状态 <br>
      * last_reboot 最后启动 <br>
-     * uptime 运行时间 秒
+     * uptime 运行时间 秒<br>
      */
     public function server(): array
     {
@@ -289,9 +289,9 @@ class Sys
         $selinux = `/usr/sbin/sestatus | grep "SELinux status: " | awk '{print $3}'`;
         $last_reboot = `who -b | awk '{print $3,$4}'`;
 //        $uptime = shell_exec("uptime | sed 's/.*up \([^,]*\), .*/\1/'");
-
-        if (false === ($str = file_get_contents('/proc/uptime'))) $uptime = 0;
+        $str = file_get_contents('/proc/uptime');
         $uptime = explode(' ', $str)[0];
+
         return [
             'ip' => trim($ip),
             'product_name' => trim($product_name),
