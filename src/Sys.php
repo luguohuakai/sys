@@ -296,6 +296,12 @@ class Sys
         ];
     }
 
+    public function getIp(): array
+    {
+        $ip = `hostname -i`;
+        return ['ip' => trim($ip)];
+    }
+
     /**
      * 获取网络数据
      * @param bool $bFormat
