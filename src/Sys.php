@@ -255,7 +255,9 @@ class Sys
     {
         $disk_free = round(disk_free_space($dir));
         $disk_total = round(disk_total_space($dir));
-        return compact('disk_free', 'disk_total');
+        $disk_used = $disk_total - $disk_free;
+        $disk_percent = round($disk_used / $disk_total * 100, 1);
+        return compact('disk_free', 'disk_total', 'disk_used', 'disk_percent');
     }
 
     /**
